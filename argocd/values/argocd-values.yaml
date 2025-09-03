@@ -1,0 +1,9 @@
+server:
+  service:
+    type: LoadBalancer
+
+configs:
+  cm:
+    application.instanceLabelKey: argocd.argoproj.io/instance
+  params:
+    server.insecure: true
