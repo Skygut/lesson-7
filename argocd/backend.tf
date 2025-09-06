@@ -1,7 +1,18 @@
+# For production use, consider using remote state
+# terraform {
+#   backend "s3" {
+#     bucket         = "your-terraform-state-bucket"
+#     key            = "argocd/terraform.tfstate"
+#     region         = "us-east-1"
+#     encrypt        = true
+#     dynamodb_table = "terraform-state-lock"
+#   }
+# }
+
+# Local backend for development
 terraform {
-  backend "s3" {
-    bucket = "my-tf-state"
-    key    = "argocd/terraform.tfstate"
-    region = "eu-central-1"
+  backend "local" {
+    path = "terraform.tfstate"
   }
 }
+

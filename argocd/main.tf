@@ -1,25 +1,41 @@
-provider "helm" {
-  kubernetes {
-    config_path = "~/.kube/config" # або використовуйте data з remote backend
-  }
-}
+ 
 
+# Create namespace for ArgoCD
 resource "kubernetes_namespace" "argocd" {
   metadata {
     name = var.argocd_namespace
+    labels = {
+      name        = var.argocd_namespace
+      environment = "infrastructure"
+      managed-by  = "terraform"
+    }
   }
 }
 
+# Deploy ArgoCD via Helm
 resource "helm_release" "argocd" {
   name       = "argocd"
-  chart      = "argo-cd"
   repository = "https://argoproj.github.io/argo-helm"
+  chart      = "argo-cd"
+  version    = var.argocd_version
   namespace  = kubernetes_namespace.argocd.metadata[0].name
-  version    = "5.51.6" # актуальну перевірити
 
   values = [
-    file("${path.module}/values/argocd-values.yaml")
+    file(var.argocd_values_file)
   ]
 
-  create_namespace = false
+  depends_on = [kubernetes_namespace.argocd]
+
+  # Wait for deployment to be ready
+  wait          = true
+  wait_for_jobs = true
+  timeout       = 600
+
+  # Prevent accidental deletion
+  lifecycle {
+    prevent_destroy = false
+  }
 }
+
+ 
+

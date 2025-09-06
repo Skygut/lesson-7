@@ -1,9 +1,51 @@
+crds:
+  install: true
+
 server:
   service:
-    type: LoadBalancer
+    type: ClusterIP
+  ingress:
+    enabled: false
+  extraArgs:
+    - --insecure
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 250m, memory: 256Mi }
+
+repoServer:
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+applicationController:
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+applicationSet:
+  enabled: true
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { cpu: 100m, memory: 128Mi }
+
+notifications:
+  enabled: true
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { cpu: 100m, memory: 128Mi }
+
+redis:
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 50m, memory: 64Mi }
+
+dex:
+  enabled: false
 
 configs:
+  params:
+    admin.enabled: "true"
+    server.insecure: true
   cm:
     application.instanceLabelKey: argocd.argoproj.io/instance
-  params:
-    server.insecure: true
+
