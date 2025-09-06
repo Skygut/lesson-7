@@ -1,9 +1,11 @@
-# MLOps Infrastructure with ArgoCD and MLflow
+# Argo CD (Terraform) + Application (GitOps)
 
-Цей репозиторій містить MLOps інфраструктуру, розгорнуту на AWS EKS з використанням Terraform та ArgoCD.
+## Передумови
+- Terraform >= 1.5
+- kubectl >= 1.24
+- Налаштований kubeconfig з доступом до вашого кластера (`~/.kube/config`)
 
-## Структура проекту
-
+## Структура
 ```
 ├── argocd/                     # Terraform конфігурація для ArgoCD
 │   ├── main.tf                 # Основна конфігурація Helm релізу ArgoCD
@@ -16,70 +18,75 @@
 └── applications/
     └── application.yaml        # ArgoCD Application з MLflow ресурсами
 ```
-
-## Розгортання
-
-### 1. Розгортання ArgoCD через Terraform
-
+## 1) Встановлення Argo CD через Terraform
 ```bash
 cd argocd
 terraform init
+terraform validate
 terraform plan
 terraform apply
 ```
 
-### 2. Отримання паролю ArgoCD
-
+## 2) Перевірка, що Argo CD працює
 ```bash
+kubectl get pods -n infra-tools
+```
+Очікувані компоненти: `argocd-server`, `argocd-repo-server`, `argocd-application-controller`, `argocd-redis`.
+
+## 3) Доступ до UI Argo CD (port-forward)
+```bash
+kubectl port-forward -n infra-tools svc/argocd-server 8080:80
+```
+Відкрийте: `http://localhost:8080`
+
+Логін:
+```bash
+# пароль admin
 kubectl -n infra-tools get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
 ```
+Користувач: `admin`
 
-### 3. Доступ до ArgoCD UI
-
-```bash
-kubectl port-forward svc/argocd-server -n infra-tools 8080:80
-```
-
-ArgoCD UI: http://localhost:8080
-
-- Логін: `admin`
-- Пароль: отриманий на кроці 2
-
-### 4. Розгортання MLflow через GitOps
-
+## 4) Деплой застосунку (Application)
+Застосуйте `Application` з цього репозиторію:
 ```bash
 kubectl apply -f application/application.yaml
 ```
+Перевірте статус Application:
+```bash
+kubectl get applications -n infra-tools
+```
 
-### 5. Доступ до MLflow UI
-
+## 5) Перевірка сервісу, який задеплоївся
+Приклад для MLflow (якщо у маніфестах використовується namespace `mlflow`):
+```bash
+kubectl get pods -n mlflow
+kubectl get svc -n mlflow
+```
+Доступ (port-forward):
 ```bash
 kubectl port-forward -n mlflow svc/mlflow-service 5000:5000
+# Відкрити: http://localhost:5000
 ```
 
-MLflow UI: http://localhost:5000
-
-## Основні команди
-
-### Моніторинг стану
-
+## 6) Видалення Argo CD
 ```bash
-# Перевірка статусу ArgoCD додатків
-kubectl get applications -n infra-tools
-
-# Перевірка статусу MLflow
-kubectl get all -n mlflow
-
-# Перегляд логів MLflow
-kubectl logs -n mlflow deployment/mlflow-server --tail=50
+cd improved-solution/argocd
+terraform destroy
 ```
 
-### Керування додатками
+## Примітки
+- Значення Helm для Argo CD: `improved-solution/argocd/values/argocd-values.yaml`.
+- Тип сервісу Argo CD — `ClusterIP`, доступ через port-forward.
+- У values явно увімкнений локальний `admin` (`configs.params.admin.enabled: "true"`).
 
-```bash
-# Примусова синхронізація ArgoCD
-kubectl annotate app mlflow-app -n infra-tools argocd.argoproj.io/refresh=hard --overwrite
+## Рекомендації
+- Практична робота:
+  - Використовуйте port-forward (вже налаштовано `ClusterIP`).
+  - `Application` застосовуйте командою без `-n`, бо namespace задано в YAML.
+  - Якщо щось не синхронізується: `kubectl describe application mlflow-app -n infra-tools`.
+- Продакшн:
+  - Вимкнути локального `admin`, увімкнути SSO (OIDC).
+  - Використати Ingress/LoadBalancer з TLS.
+  - Підібрати requests/limits під продакшн-навантаження.
+  - Зберігати Terraform state у віддаленому бекенді (S3/DynamoDB, GitOps flow).
 
-# Перезапуск MLflow deployment
-kubectl rollout restart deployment/mlflow-server -n mlflow
-```
